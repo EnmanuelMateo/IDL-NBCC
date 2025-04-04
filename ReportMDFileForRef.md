@@ -37,14 +37,6 @@ The IDL project involves two stages:
 
 - **Traditional vs. Modern Data Warehouses and Data Lake**: The concept of the data warehouse originated in the 1990s, predating data lakes, and was initially designed to manage multiple enterprise database instances. In the early 21st century, with the explosion of the internet, big data emerged as traditional databases struggled to handle massive data volumes. Google and others established foundational frameworks for distributed storage, scheduling, and computing. By the second decade of the 21st century, big data technology matured, with user-friendly SQL-based engines making unified data warehouses a reality. Simultaneously, the concept of "data lakes" emerged with open storage and computation models. These two systems advanced on both commercial and open-source trajectories.
 - **IoT-Specific Challenges**: High write throughput, time-series optimization, and horizontal scalability.
-- **Key Concepts**:
-  - **ETL (Extract, Transform, Load)**: Data is extracted, transformed into the required format/schema, and then loaded into a storage/processing system.Tools like Apache NiFi vs. streaming frameworks (Apache Flink).
-  - **OLAP Engines**: OLAP (Online Analytical Processing) engines are designed for interactive querying and exploration of large-scale analytical datasets.
-  - **CDC**: Change Data Capture. A technique used to identify and capture changes made to data in a database, allowing for real-time updates and synchronization with other systems.
-  - **Data Lake**: A centralized repository that allows you to store all your structured and unstructured data at any scale. You can run different types of analytics from dashboards and visualizations to big data processing, real-time analytics, and machine learning to help you make better decisions.
-  - **OLTP**: Online Transaction Processing.
-  - **HDFS**: Hadoop Distributed File System.
-  - **MPP**: Massively Parallel Processing.
 
 ---
 
@@ -115,6 +107,8 @@ A robust data pipeline for IoT requires tools for **ingestion**, **processing*
 
 ## **5. Proposed Architectures**
 
+![diagram](../IDL-NBCC/Screenshot/iot_pipeline_with_clickhouse_data_warehouse%201.png)
+
 ### **5.1 Recommended Stack: Real-Time IoT Analytics**
 
 [](https://via.placeholder.com/600x400?text=IoT+Sensors-%3EKafka-%3EFlink-%3EClickHouse-%3ESuperset)
@@ -143,11 +137,7 @@ A robust data pipeline for IoT requires tools for **ingestion**, **processing*
 
 ---
 
-## **7. Demo & Validation**
-
----
-
-## **10. Appendices**
+## **Appendices**
 
 - ### **Appendix A**: Glossary of Terms
 
@@ -165,6 +155,11 @@ A robust data pipeline for IoT requires tools for **ingestion**, **processing*
   - **<a id="ETL"></a>ETL**: (Extract, Transform, Load)ETL is a data integration process where data is extracted from source systems, transformed into a usable format, and loaded into a target database or data warehouse. It is a key component of data pipelines and analytics workflows.
 
 - ### **Appendix B**: Sample Queries & Screenshots.
+
+  ![ClickHouse install](../IDL-NBCC/Screenshot/ClickhouseInstalled.png)
+  ![ClickHouse Table](../IDL-NBCC/Screenshot/TableCreated_SoundLevel.png)
+  ![ClickHouse Query](../IDL-NBCC/Screenshot/QuerySample_Clickhouse.png)
+
 - ### **Appendix C**: Full List of Reviewed Data Warehouse.
 
 #### **1. Core Positioning & Use Cases**
