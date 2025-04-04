@@ -1,0 +1,12 @@
+{
+    "name": "mqtt-source",
+    "config": {
+      "connector.class": "io.lenses.connect.mqtt.MqttSourceConnector",   
+      "mqtt.url": "tcp://25.27.63.155:1883",
+      "mqtt.client.id": "kafka-connect-mqtt",
+      "mqtt.topics": "Kennedy/Vent/Act+/",
+      "kafka.topic": "mqtt",
+      "key.converter": "org.apache.kafka.connect.json.JsonConverter",
+      "value.converter": "org.apache.kafka.connect.json.JsonConverter"
+    }
+  }
