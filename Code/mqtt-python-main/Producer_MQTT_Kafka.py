@@ -1,77 +1,82 @@
-import json
-import time
-import logging
+#!/usr/bin/env python3
+import os, json, time, signal, sys
+from dotenv import load_dotenv
 import paho.mqtt.client as mqtt
 from confluent_kafka import Producer
-from datetime import datetime
 
-# Kafka configuration
-kafka_conf = {
-    'bootstrap.servers': 'localhost:9092',  # Update if using Docker or remote Kafka
-}
-kafka_producer = Producer(kafka_conf)
+load_dotenv()
 
-# MQTT configuration
-mqtt_host = "vm-ictrg-idl-docker-mosquitto-1883-tcp.at.remote.it"
-mqtt_port = 33008
-mqtt_topic = "idl/all_iot/idl_data"
+KAFKA_BOOTSTRAP = os.getenv("KAFKA_BOOTSTRAP", "localhost:9092")
+KAFKA_TOPIC     = os.getenv("KAFKA_TOPIC", "sensor_data")
 
-# Function to process MQTT messages
-def process_mqtt_message(client, userdata, message):
+MQTT_HOST  = os.getenv("MQTT_HOST", "localhost")
+MQTT_PORT  = int(os.getenv("MQTT_PORT", "1883"))
+MQTT_TOPIC = os.getenv("MQTT_TOPIC", "idl/all_iot/idl_data")
+
+producer = Producer({"bootstrap.servers": KAFKA_BOOTSTRAP})
+running = True
+
+def delivery_report(err, msg):
+    if err is not None:
+        print(f"[Kafka] ❌ Delivery failed: {err}")
+    else:
+        print(f"[Kafka] ✅ Delivered to {msg.topic()} [{msg.partition()}] offset {msg.offset()}")
+
+def on_connect(client, userdata, flags, rc):
+    if rc == 0:
+        print(f"[MQTT] ✅ Connected to {MQTT_HOST}:{MQTT_PORT}")
+        client.subscribe(MQTT_TOPIC)
+        print(f"[MQTT] 📡 Subscribed: {MQTT_TOPIC}")
+    else:
+        print(f"[MQTT] ❌ Connect failed rc={rc}")
+
+def on_message(client, userdata, msg):
+    payload = msg.payload.decode(errors="ignore").strip()
     try:
-        payload = message.payload.decode("utf-8")
-        data = json.loads(payload)
-
-        # Capture timestamp at message retrieval
-        timestamp = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
-
-        # Extract relevant device details
-        device_type = data.get("device_info", {}).get("device_type", "Unknown Type")
-        device_name = data.get("device_info", {}).get("device_name", "Unknown Name")
-        location = data.get("device_info", {}).get("device_deployment_location", "Unknown Location")
-        sublocation = data.get("device_info", {}).get("device_deployment_sub_location", "Unknown Sublocation")
-
-        # Extract sensor readings safely
-        sensor_readings = data.get("device_info", {}).get("sensor_info", [])
-
-        # Prepare structured data for Kafka
-        cleaned_data = {
-            "timestamp": timestamp,
-            "device_type": device_type,
-            "device_name": device_name,
-            "location": location,
-            "sublocation": sublocation,
-            "sensor_readings": sensor_readings
+        # If it’s JSON already, keep it; otherwise wrap it
+        data = json.loads(payload) if (payload.startswith("{") or payload.startswith("[")) else {"value": payload}
+        data["_meta"] = {
+            "mqtt_topic": msg.topic,
+            "ts": time.time()
         }
-
-        # Convert cleaned data to JSON
-        kafka_message = json.dumps(cleaned_data, ensure_ascii=True).encode('utf-8')
-
-        # Send message to Kafka
-        kafka_producer.produce('sensor_data', key=str(time.time()), value=kafka_message)
-        kafka_producer.flush()
-
-        print(f"\nSent to Kafka: {cleaned_data}")
-
-    except json.JSONDecodeError as e:
-        logging.error(f"JSON decoding error: {e}")
+        producer.produce(KAFKA_TOPIC, value=json.dumps(data), key=str(time.time()), callback=delivery_report)
+        producer.poll(0)
+        print(f"[Pipe] MQTT→Kafka | topic={msg.topic} -> {KAFKA_TOPIC}")
     except Exception as e:
-        logging.error(f"Unexpected error processing MQTT message: {e}")
+        print(f"[Producer] ❌ Error processing message: {e}")
 
-# Set up MQTT client
-mqtt_client = mqtt.Client(client_id="Kafka_MQTT")
-mqtt_client.on_message = process_mqtt_message  # Assign before connecting
-mqtt_client.connect(mqtt_host, mqtt_port)
+def shutdown(*_):
+    global running
+    running = False
+    print("\n[Producer] 🛑 Shutting down…")
+    try:
+        producer.flush(10)
+    except Exception:
+        pass
 
-# Start MQTT listener
-mqtt_client.loop_start()
-mqtt_client.subscribe(mqtt_topic)
+def main():
+    signal.signal(signal.SIGINT, shutdown)
+    signal.signal(signal.SIGTERM, shutdown)
 
-try:
-    while True:
-        time.sleep(1)
-except KeyboardInterrupt:
-    print("Shutting down MQTT client gracefully...")
-    mqtt_client.loop_stop()
-    kafka_producer.flush()
-    mqtt_client.disconnect()
+    client = mqtt.Client()
+    client.on_connect = on_connect
+    client.on_message = on_message
+
+    while running:
+        try:
+            print(f"[MQTT] 🔌 Connecting to {MQTT_HOST}:{MQTT_PORT} …")
+            client.connect(MQTT_HOST, MQTT_PORT, keepalive=60)
+            client.loop_start()
+            while running:
+                time.sleep(1)
+            break
+        except Exception as e:
+            print(f"[MQTT] ❌ Connect error: {e} (retrying in 5s)")
+            time.sleep(5)
+
+    client.loop_stop()
+    client.disconnect()
+    print("[Producer] ✅ Exit.")
+
+if __name__ == "__main__":
+    main()
